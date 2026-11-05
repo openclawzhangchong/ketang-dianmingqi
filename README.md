@@ -1,5 +1,9 @@
 # 🎯 课堂随机点名器
 
+[![Deploy Pages](https://github.com/openclawzhangchong/ketang-dianmingqi/actions/workflows/pages.yml/badge.svg)](https://github.com/openclawzhangchong/ketang-dianmingqi/actions/workflows/pages.yml)
+
+📄 **文档**：[开发手册](docs/DEVELOPMENT.md)（架构 / 数据契约 / 测试 / 二次开发指南）· [更新日志](CHANGELOG.md)
+
 为计算机机房/教室场景做的随机点名工具，**两种形态**：
 
 | 形态 | 适合场景 | 入口 |
