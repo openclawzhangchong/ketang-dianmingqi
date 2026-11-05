@@ -7,6 +7,12 @@
 | **网页版** | 任何设备打开即用，零安装 | **[GitHub Pages 在线版](https://openclawzhangchong.github.io/ketang-dianmingqi/)**（[备用镜像](https://mineral-donkey-ggs3.here.now/)） |
 | **桌面版**（教师机） | 机房教师机常驻、大屏投影、不依赖浏览器缓存 | `desktop/启动课堂点名器.bat` 双击 |
 
+## 界面预览
+
+![点名主界面](docs/screenshots/home.png)
+
+![点名结果](docs/screenshots/result.png)
+
 ## 功能
 
 - **导入花名册**：支持 `.xlsx / .xls / .csv`（学籍系统导出的大表也能直接吃），自动识别「姓名」「班级」列，
