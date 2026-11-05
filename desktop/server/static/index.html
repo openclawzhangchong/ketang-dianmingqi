@@ -1,0 +1,243 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>课堂随机点名器</title>
+<style>
+  :root{--bg:#0b1020;--panel:#131a2f;--panel2:#1a2340;--ink:#eef1fb;--sub:#8b93b0;--line:#232d4d;--gold:#ffc53d;--blue:#4d7cfe;--ok:#34d399;--err:#f87171}
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{font-family:"Microsoft YaHei UI",system-ui,sans-serif;background:radial-gradient(1200px 600px at 50% -10%,#16204a 0%,var(--bg) 60%);color:var(--ink);min-height:100vh}
+  .wrap{max-width:1100px;margin:0 auto;padding:22px 18px 60px}
+  header{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+  h1{font-size:20px}
+  .src{color:var(--sub);font-size:12px}
+  .spacer{flex:1}
+  .btn{padding:9px 16px;border:1px solid var(--line);background:var(--panel2);color:var(--ink);border-radius:10px;font-size:14px;cursor:pointer}
+  .btn:hover{border-color:var(--blue)}
+  .btn.primary{background:var(--blue);border-color:var(--blue);color:#fff;font-weight:700}
+  .btn.gold{background:var(--gold);border-color:var(--gold);color:#201400;font-weight:700}
+  .btn:disabled{opacity:.45;cursor:not-allowed}
+  select,input[type=number],textarea{background:var(--panel2);border:1px solid var(--line);color:var(--ink);border-radius:8px;padding:8px 10px;font-size:14px;font-family:inherit}
+  .stage{background:linear-gradient(180deg,var(--panel) 0%,var(--panel2) 100%);border:1px solid var(--line);border-radius:20px;margin-top:16px;padding:34px 20px;text-align:center;position:relative;overflow:hidden}
+  .stage .classTag{display:inline-block;background:#0e1430;border:1px solid var(--line);color:var(--sub);font-size:13px;border-radius:99px;padding:3px 14px;margin-bottom:14px}
+  #name{font-size:min(15vw,120px);font-weight:900;letter-spacing:6px;line-height:1.15;min-height:1.2em;text-shadow:0 0 30px rgba(77,124,254,.35);word-break:break-all}
+  #name.done{color:var(--gold);text-shadow:0 0 40px rgba(255,197,61,.45)}
+  #group{font-size:min(7vw,44px);font-weight:800;line-height:1.5;word-break:break-all}
+  #group .gname{display:inline-block;background:#0e1430;border:1px solid var(--line);border-radius:14px;padding:6px 18px;margin:6px}
+  .rollNote{color:var(--sub);font-size:13px;margin-top:12px;height:1.2em}
+  .ctrl{display:flex;gap:10px;justify-content:center;align-items:center;flex-wrap:wrap;margin-top:22px}
+  .ctrl label{color:var(--sub);font-size:13px;display:flex;align-items:center;gap:6px;cursor:pointer}
+  .opts{display:flex;gap:12px;align-items:center;flex-wrap:wrap;margin-top:18px;justify-content:center}
+  .opts .chip{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:8px 12px;font-size:13px;color:var(--sub);display:flex;gap:8px;align-items:center}
+  .panel{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:16px;margin-top:16px}
+  .panel h3{font-size:14px;color:var(--sub);font-weight:600;margin-bottom:10px;display:flex;justify-content:space-between;align-items:center}
+  .drawn{display:flex;flex-wrap:wrap;gap:8px}
+  .drawn .d{background:#0e1430;border:1px solid var(--line);border-radius:8px;padding:5px 10px;font-size:14px}
+  .drawn .d small{color:var(--sub);margin-left:6px;font-size:11px}
+  .empty{color:var(--sub);font-size:13px}
+  #dropZone{border:2px dashed #33406e;border-radius:12px;padding:22px;text-align:center;cursor:pointer}
+  #dropZone.hover{border-color:var(--blue);background:#121a3a}
+  .muted{color:var(--sub);font-size:12px;margin-top:8px;line-height:1.7}
+  #toast{position:fixed;left:50%;bottom:26px;transform:translateX(-50%);background:#000;color:#fff;padding:10px 18px;border-radius:10px;font-size:13px;display:none;z-index:9;opacity:.9}
+  .modal{position:fixed;inset:0;background:rgba(4,8,20,.72);display:none;align-items:center;justify-content:center;z-index:8}
+  .modal .box{background:var(--panel);border:1px solid var(--line);border-radius:16px;padding:22px;width:min(560px,92vw)}
+  .modal h3{margin-bottom:10px}
+  .modal textarea{width:100%;min-height:130px}
+  .modal .foot{display:flex;gap:10px;justify-content:flex-end;margin-top:12px}
+  .confetti{position:absolute;inset:0;pointer-events:none}
+  .kbd{color:var(--sub);font-size:12px}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <h1>🎯 课堂随机点名器</h1>
+    <span class="src" id="src"></span>
+    <span class="spacer"></span>
+    <button class="btn" id="btnImport">📋 导入花名册</button>
+    <button class="btn" id="btnPaste">✍️ 粘贴名单</button>
+    <button class="btn" id="btnExport">💾 导出点名记录</button>
+  </header>
+
+  <div class="stage">
+    <div class="classTag" id="clsTag">全部名单</div>
+    <div id="name">准备好了吗？</div>
+    <div id="group" style="display:none"></div>
+    <div class="rollNote" id="note">按 空格键 或点下方按钮开始点名</div>
+    <div class="ctrl">
+      <button class="gold" id="go" style="font-size:18px;padding:12px 34px">开始点名（空格）</button>
+      <label><input type="checkbox" id="unique" checked> 不重复模式</label>
+      <select id="groupN">
+        <option value="1">单人</option><option value="2">2人小组</option><option value="3">3人小组</option>
+        <option value="4">4人小组</option><option value="5">5人小组</option><option value="6">6人小组</option>
+      </select>
+    </div>
+    <div class="opts">
+      <span class="chip">名单：<b id="cnt">0</b> 人</span>
+      <select id="cls" style="display:none"><option value="">全部班级</option></select>
+      <span class="chip">本轮已点：<b id="drawnCnt">0</b> 人次</span>
+      <span class="chip">剩余：<b id="remain">-</b></span>
+      <button class="btn" id="undo">撤销上一个</button>
+      <button class="btn" id="reset">重置本轮</button>
+    </div>
+  </div>
+
+  <div class="panel">
+    <h3>本轮已点名 <span class="kbd" id="remain2"></span></h3>
+    <div class="drawn" id="drawnList"><span class="empty">还没有记录。</span></div>
+  </div>
+
+  <div class="modal" id="importModal">
+    <div class="box">
+      <h3>导入花名册（.xlsx / .xls / .csv）</h3>
+      <div id="dropZone"><b>点击选择文件，或拖到这里</b>
+        <input type="file" id="file" hidden accept=".xlsx,.xls,.csv">
+        <div class="muted">自动识别「姓名」列与「班级」列；识别错了可以在下方换列。<br>已适配学籍系统导出的大表格（自动跳过空行）。</div>
+      </div>
+      <div id="importPreview" style="margin-top:12px"></div>
+      <div class="foot">
+        <button class="btn" onclick="closeModal()">取消</button>
+        <button class="btn primary" id="applyBtn" style="display:none">确认导入</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="modal" id="pasteModal">
+    <div class="box">
+      <h3>粘贴名单（换行 / 顿号 / 逗号分隔）</h3>
+      <textarea id="pasteText" placeholder="张三&#10;李四&#10;王五、赵六"></textarea>
+      <div class="foot">
+        <button class="btn" onclick="closeModal()">取消</button>
+        <button class="btn primary" id="pasteApply">保存名单</button>
+      </div>
+    </div>
+  </div>
+</div>
+<div id="toast"></div>
+<script>
+const $=id=>document.getElementById(id);
+function toast(m,ok=true){const t=$("toast");t.textContent=m;t.style.display="block";t.style.background=ok?"#000":"#7f1d1d";setTimeout(()=>t.style.display="none",2400)}
+let rolling=false, pending=null;
+
+// —— 状态加载 ——
+async function refresh(){
+  const st=await (await fetch("/api/state")).json();
+  $("cnt").textContent=st.count;
+  $("drawnCnt").textContent=st.drawn.length;
+  $("remain").textContent=st.count?Math.max(0,st.count-st.drawn.length):"-";
+  $("remain2").textContent=st.count?("共 "+st.count+" 人"):"";
+  $("src").textContent=st.source?("名单来源："+st.source):"（还没导入名单，请点右上角「导入花名册」）";
+  const clsSel=$("cls");
+  clsSel.style.display=st.classes.length?"inline-block":"none";
+  const cur=clsSel.value;
+  clsSel.innerHTML='<option value="">全部班级</option>'+st.classes.map(c=>`<option ${c===cur?"selected":""}>${c}</option>`).join("");
+  $("clsTag").textContent=clsSel.value?("班级："+clsSel.value):"全部名单";
+  $("drawnList").innerHTML=st.drawn.length?st.drawn.map(d=>`<span class="d">${d.name}${d.cls?`<small>${d.cls}</small>`:""}<small>${d.time}</small></span>`).join(""):'<span class="empty">还没有记录。</span>';
+}
+
+// —— 点名 ——
+async function draw(){
+  if(rolling)return;
+  const st=await (await fetch("/api/state")).json();
+  if(!st.count){toast("请先导入名单或粘贴名单",false);return}
+  const n=parseInt($("groupN").value)||1;
+  const isGroup=n>1;
+  $("group").style.display=isGroup?"block":"none";
+  $("name").style.display=isGroup?"none":"block";
+  $("name").classList.remove("done");$("note").textContent="点名中…";
+  rolling=true;$("go").disabled=true;
+  const body={n:n, cls:$("cls").value, unique:$("unique").checked};
+  const r=await fetch("/api/draw",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(body)});
+  const j=await r.json();
+  if(j.error){toast(j.error,false);rolling=false;$("go").disabled=false;return}
+  // 滚动动画：先快速随机名字，最后定格
+  const names=j.picked.map(p=>p.name);
+  const pool=(await (await fetch("/api/state")).json());
+  const allNames=(j.picked.map(p=>p.name)).concat(["同学1","同学2","同学3","王同学","李同学","张同学"]);
+  let ticks=0, delay=60;
+  const singleTick=()=>{
+    $("name").textContent=allNames[Math.floor(Math.random()*allNames.length)];
+    ticks++;
+    if(ticks<16){delay+=8;setTimeout(singleTick,delay)}
+    else{
+      $("name").textContent=names[0];$("name").classList.add("done");
+      $("note").textContent=n>1?("小组已抽出（"+n+" 人）"):"就是你了！";
+      $("group").innerHTML=names.map(x=>`<span class="gname">${x}</span>`).join("");
+      if(n>1){$("name").textContent="";$("name").classList.add("done")}
+      rolling=false;$("go").disabled=false;refresh();
+    }
+  };
+  singleTick();
+}
+$("go").onclick=draw;
+document.addEventListener("keydown",e=>{
+  if(e.code==="Space"&&!["TEXTAREA","INPUT","SELECT"].includes(e.target.tagName)){e.preventDefault();draw()}
+  if(e.code==="Escape"){closeModal()}
+});
+
+$("reset").onclick=async()=>{if(!confirm("确认重置本轮（已点名清零）？"))return;await fetch("/api/reset",{method:"POST"});toast("已重置");refresh()};
+$("undo").onclick=async()=>{await fetch("/api/undo",{method:"POST"});refresh()};
+$("cls").onchange=()=>{$("clsTag").textContent=$("cls").value?("班级："+$("cls").value):"全部名单"};
+
+// —— 导出记录 ——
+$("btnExport").onclick=async()=>{
+  const r=await fetch("/api/export",{method:"POST"});
+  const j=await r.json();
+  if(j.error){toast(j.error,false);return}
+  location.href="/api/open/"+encodeURIComponent(j.filename);
+  toast("已导出 "+j.filename);
+};
+
+// —— 粘贴名单 ——
+$("btnPaste").onclick=()=>$("pasteModal").style.display="flex";
+$("pasteApply").onclick=async()=>{
+  const r=await fetch("/api/paste",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({text:$("pasteText").value})});
+  const j=await r.json();
+  if(j.error){toast(j.error,false);return}
+  closeModal();toast("名单已保存："+j.count+" 人");refresh();
+};
+
+// —— 导入花名册 ——
+$("btnImport").onclick=()=>{$("importModal").style.display="flex";$("importPreview").innerHTML="";$("applyBtn").style.display="none"};
+const dz=$("dropZone"),fileIn=$("file");
+dz.onclick=()=>fileIn.click();
+dz.ondragover=e=>{e.preventDefault();dz.classList.add("hover")};
+dz.ondragleave=()=>dz.classList.remove("hover");
+dz.ondrop=e=>{e.preventDefault();dz.classList.remove("hover");if(e.dataTransfer.files[0])upload(e.dataTransfer.files[0])};
+fileIn.onchange=()=>{if(fileIn.files[0])upload(fileIn.files[0])};
+
+async function upload(f){
+  $("importPreview").innerHTML='<div class="muted">解析中…（大表格约需几秒）</div>';
+  const fd=new FormData();fd.append("file",f);
+  const r=await fetch("/api/import",{method:"POST",body:fd});
+  const j=await r.json();
+  if(j.error){$("importPreview").innerHTML="";toast(j.error,false);return}
+  pending=j;
+  const colOpts=j.columns.map(c=>`<option value="${c.idx}" ${c.idx===j.name_col_guess?"selected":""}>${c.header}</option>`).join("");
+  const clsOpts='<option value="">（不按班级）</option>'+j.columns.map(c=>`<option value="${c.idx}" ${c.idx===j.class_col_guess?"selected":""}>${c.header}</option>`).join("");
+  $("importPreview").innerHTML=`
+    <div class="muted">文件：${j.filename} · 有效数据行：${j.row_count}</div>
+    <div style="display:flex;gap:12px;margin-top:10px;flex-wrap:wrap">
+      <label style="color:var(--sub);font-size:13px">姓名列：<select id="nc">${colOpts}</select></label>
+      <label style="color:var(--sub);font-size:13px">班级列：<select id="cc">${clsOpts}</select></label>
+    </div>`;
+  $("applyBtn").style.display="inline-block";
+}
+$("applyBtn").onclick=async()=>{
+  if(!pending)return;
+  const body={_headers:pending._headers,_rows:pending._rows,filename:pending.filename,
+    name_col:parseInt($("nc").value),class_col:$("cc").value===""?null:parseInt($("cc").value)};
+  const r=await fetch("/api/apply",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(body)});
+  const j=await r.json();
+  if(j.error){toast(j.error,false);return}
+  pending=null;closeModal();
+  toast("导入成功："+j.count+" 名学生"+(j.classes.length?("，"+j.classes.length+" 个班"):""));
+  refresh();
+};
+
+function closeModal(){document.querySelectorAll(".modal").forEach(m=>m.style.display="none")}
+refresh();
+</script>
+</body>
+</html>

@@ -1,0 +1,291 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>课堂随机点名器 · 网页版</title>
+<script src="vendor/xlsx.full.min.js"></script>
+<style>
+  :root{--bg:#0b1020;--panel:#131a2f;--panel2:#1a2340;--ink:#eef1fb;--sub:#8b93b0;--line:#232d4d;--gold:#ffc53d;--blue:#4d7cfe;--ok:#34d399;--err:#f87171}
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{font-family:"Microsoft YaHei UI",system-ui,sans-serif;background:radial-gradient(1200px 600px at 50% -10%,#16204a 0%,var(--bg) 60%);color:var(--ink);min-height:100vh}
+  .wrap{max-width:1100px;margin:0 auto;padding:22px 18px 60px}
+  header{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+  h1{font-size:20px}
+  .src{color:var(--sub);font-size:12px}
+  .spacer{flex:1}
+  .btn{padding:9px 16px;border:1px solid var(--line);background:var(--panel2);color:var(--ink);border-radius:10px;font-size:14px;cursor:pointer}
+  .btn:hover{border-color:var(--blue)}
+  .btn.gold{background:var(--gold);border-color:var(--gold);color:#201400;font-weight:700}
+  select,input,textarea{background:var(--panel2);border:1px solid var(--line);color:var(--ink);border-radius:8px;padding:8px 10px;font-size:14px;font-family:inherit}
+  .stage{background:linear-gradient(180deg,var(--panel) 0%,var(--panel2) 100%);border:1px solid var(--line);border-radius:20px;margin-top:16px;padding:34px 20px;text-align:center}
+  .stage .classTag{display:inline-block;background:#0e1430;border:1px solid var(--line);color:var(--sub);font-size:13px;border-radius:99px;padding:3px 14px;margin-bottom:14px}
+  #name{font-size:min(15vw,120px);font-weight:900;letter-spacing:6px;line-height:1.15;min-height:1.2em;text-shadow:0 0 30px rgba(77,124,254,.35);word-break:break-all}
+  #name.done{color:var(--gold);text-shadow:0 0 40px rgba(255,197,61,.45)}
+  #group{font-size:min(7vw,44px);font-weight:800;line-height:1.5;word-break:break-all}
+  #group .gname{display:inline-block;background:#0e1430;border:1px solid var(--line);border-radius:14px;padding:6px 18px;margin:6px}
+  .rollNote{color:var(--sub);font-size:13px;margin-top:12px;height:1.2em}
+  .ctrl{display:flex;gap:10px;justify-content:center;align-items:center;flex-wrap:wrap;margin-top:22px}
+  .ctrl label{color:var(--sub);font-size:13px;display:flex;align-items:center;gap:6px;cursor:pointer}
+  .opts{display:flex;gap:12px;align-items:center;flex-wrap:wrap;margin-top:18px;justify-content:center}
+  .opts .chip{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:8px 12px;font-size:13px;color:var(--sub);display:flex;gap:8px;align-items:center}
+  .panel{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:16px;margin-top:16px}
+  .panel h3{font-size:14px;color:var(--sub);font-weight:600;margin-bottom:10px;display:flex;justify-content:space-between;align-items:center}
+  .drawn{display:flex;flex-wrap:wrap;gap:8px}
+  .drawn .d{background:#0e1430;border:1px solid var(--line);border-radius:8px;padding:5px 10px;font-size:14px}
+  .drawn .d small{color:var(--sub);margin-left:6px;font-size:11px}
+  .empty{color:var(--sub);font-size:13px}
+  #dropZone{border:2px dashed #33406e;border-radius:12px;padding:22px;text-align:center;cursor:pointer}
+  #dropZone.hover{border-color:var(--blue);background:#121a3a}
+  .muted{color:var(--sub);font-size:12px;margin-top:8px;line-height:1.7}
+  #toast{position:fixed;left:50%;bottom:26px;transform:translateX(-50%);background:#000;color:#fff;padding:10px 18px;border-radius:10px;font-size:13px;display:none;z-index:9;opacity:.9}
+  .modal{position:fixed;inset:0;background:rgba(4,8,20,.72);display:none;align-items:center;justify-content:center;z-index:8}
+  .modal .box{background:var(--panel);border:1px solid var(--line);border-radius:16px;padding:22px;width:min(560px,92vw)}
+  .modal h3{margin-bottom:10px}
+  .modal textarea{width:100%;min-height:130px}
+  .modal .foot{display:flex;gap:10px;justify-content:flex-end;margin-top:12px}
+  .kbd{color:var(--sub);font-size:12px}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <h1>🎯 课堂随机点名器</h1>
+    <span class="src" id="src">网页版 · 名单保存在本机浏览器</span>
+    <span class="spacer"></span>
+    <button class="btn" id="btnImport">📋 导入花名册</button>
+    <button class="btn" id="btnPaste">✍️ 粘贴名单</button>
+    <button class="btn" id="btnExport">💾 导出点名记录</button>
+  </header>
+
+  <div class="stage">
+    <div class="classTag" id="clsTag">全部名单</div>
+    <div id="name">准备好了吗？</div>
+    <div id="group" style="display:none"></div>
+    <div class="rollNote" id="note">按 空格键 或点下方按钮开始点名</div>
+    <div class="ctrl">
+      <button class="gold" id="go" style="font-size:18px;padding:12px 34px">开始点名（空格）</button>
+      <label><input type="checkbox" id="unique" checked> 不重复模式</label>
+      <select id="groupN">
+        <option value="1">单人</option><option value="2">2人小组</option><option value="3">3人小组</option>
+        <option value="4">4人小组</option><option value="5">5人小组</option><option value="6">6人小组</option>
+      </select>
+    </div>
+    <div class="opts">
+      <span class="chip">名单：<b id="cnt">0</b> 人</span>
+      <select id="cls" style="display:none"><option value="">全部班级</option></select>
+      <span class="chip">本轮已点：<b id="drawnCnt">0</b> 人次</span>
+      <span class="chip">剩余：<b id="remain">-</b></span>
+      <button class="btn" id="undo">撤销上一个</button>
+      <button class="btn" id="reset">重置本轮</button>
+    </div>
+  </div>
+
+  <div class="panel">
+    <h3>本轮已点名 <span class="kbd" id="remain2"></span></h3>
+    <div class="drawn" id="drawnList"><span class="empty">还没有记录。</span></div>
+  </div>
+
+  <div class="modal" id="importModal">
+    <div class="box">
+      <h3>导入花名册（.xlsx / .xls / .csv）</h3>
+      <div id="dropZone"><b>点击选择文件，或拖到这里</b>
+        <input type="file" id="file" hidden accept=".xlsx,.xls,.csv">
+        <div class="muted">在浏览器本地解析（SheetJS），自动识别「姓名」「班级」列，名单不上传任何服务器。</div>
+      </div>
+      <div id="importPreview" style="margin-top:12px"></div>
+      <div class="foot">
+        <button class="btn" onclick="closeModal()">取消</button>
+        <button class="btn" id="applyBtn" style="display:none;background:var(--blue);border-color:var(--blue)">确认导入</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="modal" id="pasteModal">
+    <div class="box">
+      <h3>粘贴名单（换行 / 顿号 / 空格 / 逗号分隔）</h3>
+      <textarea id="pasteText" placeholder="张三&#10;李四&#10;王五、赵六"></textarea>
+      <div class="foot">
+        <button class="btn" onclick="closeModal()">取消</button>
+        <button class="btn" id="pasteApply" style="background:var(--blue);border-color:var(--blue)">保存名单</button>
+      </div>
+    </div>
+  </div>
+</div>
+<div id="toast"></div>
+<script>
+const $=id=>document.getElementById(id);
+const NAME_PAT=/^[\u4e00-\u9fa5·‧•]{2,6}$/;
+const NAME_HEADER=/^(姓名|学生姓名|学生|name)$/i;
+const BAD_HEADER=/(父|母|监护|联系|备注)/;
+const CLASS_HEADER=/(班级|班别|行政班)/;
+const EXCLUDE_HEADER=/(证件|电话|号码|身份|地址|状态|银行|社保)/;
+function toast(m,ok=true){const t=$("toast");t.textContent=m;t.style.display="block";t.style.background=ok?"#000":"#7f1d1d";setTimeout(()=>t.style.display="none",2400)}
+function esc(s){return String(s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;")}
+
+let state={students:[],drawn:[],source:""};
+let rolling=false, pending=null;
+const LS_KEY="dianmingqi_state_v1";
+
+function save(){localStorage.setItem(LS_KEY,JSON.stringify(state))}
+function load(){
+  try{ state=JSON.parse(localStorage.getItem(LS_KEY))||state }catch(e){}
+  refresh();
+}
+function classes(){return [...new Set(state.students.map(s=>s.cls).filter(Boolean))].sort()}
+function refresh(){
+  $("cnt").textContent=state.students.length;
+  $("drawnCnt").textContent=state.drawn.length;
+  $("remain").textContent=state.students.length?Math.max(0,state.students.length-state.drawn.length):"-";
+  $("remain2").textContent=state.students.length?("共 "+state.students.length+" 人"):"";
+  $("src").textContent=state.source?("名单来源："+state.source+" · 本机保存"):"网页版 · 名单只存在本机浏览器";
+  const clsSel=$("cls");
+  const cs=classes();
+  clsSel.style.display=cs.length?"inline-block":"none";
+  const cur=clsSel.value;
+  clsSel.innerHTML='<option value="">全部班级</option>'+cs.map(c=>`<option ${c===cur?"selected":""}>${esc(c)}</option>`).join("");
+  $("clsTag").textContent=clsSel.value?("班级："+clsSel.value):"全部名单";
+  $("drawnList").innerHTML=state.drawn.length?state.drawn.map(d=>`<span class="d">${esc(d.name)}${d.cls?`<small>${esc(d.cls)}</small>`:""}<small>${d.time}</small></span>`).join(""):'<span class="empty">还没有记录。</span>';
+}
+
+function pickN(pool,n){
+  const arr=pool.slice();
+  for(let i=arr.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[arr[i],arr[j]]=[arr[j],arr[i]]}
+  return arr.slice(0,n);
+}
+function draw(){
+  if(rolling)return;
+  if(!state.students.length){toast("请先导入名单或粘贴名单",false);return}
+  const n=parseInt($("groupN").value)||1;
+  const isGroup=n>1;
+  $("group").style.display=isGroup?"block":"none";
+  $("name").style.display=isGroup?"none":"block";
+  $("name").classList.remove("done");$("note").textContent="点名中…";
+  rolling=true;
+  const cls=$("cls").value, unique=$("unique").checked;
+  let pool=state.students.filter(s=>!cls||s.cls===cls);
+  if(unique){const ids=new Set(state.drawn.map(d=>d.id));pool=pool.filter(s=>!ids.has(s.id))}
+  if(!pool.length){toast("可选的人抽完了：请重置本轮或关闭『不重复』",false);rolling=false;return}
+  const picked=pickN(pool,Math.min(n,pool.length));
+  const now=new Date().toTimeString().slice(0,8);
+  const names=picked.map(p=>p.name);
+  const anim=["同学1","同学2","同学3","王同学","李同学","张同学"];
+  let ticks=0, delay=60;
+  const tick=()=>{
+    $("name").textContent=anim[Math.floor(Math.random()*anim.length)];
+    ticks++;
+    if(ticks<16){delay+=8;setTimeout(tick,delay)}
+    else{
+      $("name").textContent=names[0];$("name").classList.add("done");
+      $("note").textContent=n>1?("小组已抽出（"+n+" 人）"):"就是你了！";
+      $("group").innerHTML=names.map(x=>`<span class="gname">${esc(x)}</span>`).join("");
+      if(n>1){$("name").textContent="";$("name").classList.add("done")}
+      picked.forEach(p=>state.drawn.push({id:p.id,name:p.name,cls:p.cls,time:now}));
+      save();rolling=false;refresh();
+    }
+  };
+  tick();
+}
+$("go").onclick=draw;
+document.addEventListener("keydown",e=>{
+  if(e.code==="Space"&&!["TEXTAREA","INPUT","SELECT"].includes(e.target.tagName)){e.preventDefault();draw()}
+  if(e.code==="Escape")closeModal();
+});
+$("reset").onclick=()=>{if(!confirm("确认重置本轮（已点名清零）？"))return;state.drawn=[];save();toast("已重置");refresh()};
+$("undo").onclick=()=>{state.drawn.pop();save();refresh()};
+$("cls").onchange=()=>{$("clsTag").textContent=$("cls").value?("班级："+$("cls").value):"全部名单"};
+
+$("btnExport").onclick=()=>{
+  if(!state.drawn.length){toast("本轮还没有点名记录",false);return}
+  const lines=["课堂随机点名记录（来源："+(state.source||"")+"，共 "+state.drawn.length+" 人次）",
+    "导出时间："+new Date().toLocaleString("zh-CN"),"-".repeat(40)];
+  state.drawn.forEach((d,i)=>lines.push(`${String(i+1).padStart(3)}. ${d.name}${d.cls?`（${d.cls}）`:""}  ${d.time}`));
+  const blob=new Blob([lines.join("\n")],{type:"text/plain;charset=utf-8"});
+  const a=document.createElement("a");
+  a.href=URL.createObjectURL(blob);
+  a.download="点名记录_"+new Date().toISOString().slice(0,10).replace(/-/g,"")+".txt";
+  a.click();
+};
+
+$("btnPaste").onclick=()=>$("pasteModal").style.display="flex";
+$("pasteApply").onclick=()=>{
+  const text=$("pasteText").value;
+  const raw=text.split(/[\s,，、;；]+/);
+  const students=[],seen=new Set();
+  raw.forEach(n=>{n=n.replace(/\s+/g,"");if(NAME_PAT.test(n)&&!seen.has(n)){seen.add(n);students.push({id:students.length,name:n,cls:""})}});
+  if(!students.length){toast("没解析出姓名（用换行、空格或顿号分隔）",false);return}
+  state={students,drawn:[],source:"手动粘贴"};
+  save();closeModal();toast("名单已保存："+students.length+" 人");refresh();
+};
+
+$("btnImport").onclick=()=>{$("importModal").style.display="flex";$("importPreview").innerHTML="";$("applyBtn").style.display="none"};
+const dz=$("dropZone"),fileIn=$("file");
+dz.onclick=()=>fileIn.click();
+dz.ondragover=e=>{e.preventDefault();dz.classList.add("hover")};
+dz.ondragleave=()=>dz.classList.remove("hover");
+dz.ondrop=e=>{e.preventDefault();dz.classList.remove("hover");if(e.dataTransfer.files[0])upload(e.dataTransfer.files[0])};
+fileIn.onchange=()=>{if(fileIn.files[0])upload(fileIn.files[0])};
+
+function readTable(wb){
+  const ws=wb.Sheets[wb.SheetNames[0]];
+  const rows=XLSX.utils.sheet_to_json(ws,{header:1,raw:false,defval:""}).map(r=>r.map(v=>String(v).trim()));
+  const headers=rows.shift()||[];
+  return {headers,rows:rows.filter(r=>r.some(c=>c))};
+}
+function guessNameCol(headers,rows){
+  for(let i=0;i<headers.length;i++){const h=headers[i];if(h&&NAME_HEADER.test(h)&&!BAD_HEADER.test(h))return i}
+  for(let i=0;i<headers.length;i++){const h=headers[i];if(h.includes("姓名")&&!BAD_HEADER.test(h)&&!EXCLUDE_HEADER.test(h))return i}
+  let best=null,bestN=0;
+  for(let i=0;i<headers.length;i++){
+    const n=rows.slice(0,5000).filter(r=>r[i]&&NAME_PAT.test(r[i])).length;
+    if(n>bestN){best=i;bestN=n}
+  }
+  return bestN?best:null;
+}
+function guessClassCol(headers){
+  for(let i=0;i<headers.length;i++){const h=headers[i];if(h&&CLASS_HEADER.test(h)&&!EXCLUDE_HEADER.test(h))return i}
+  return null;
+}
+async function upload(f){
+  $("importPreview").innerHTML='<div class="muted">解析中…</div>';
+  try{
+    const buf=await f.arrayBuffer();
+    const wb=XLSX.read(buf,{type:"array"});
+    const {headers,rows}=readTable(wb);
+    const nc=guessNameCol(headers,rows), cc=guessClassCol(headers);
+    if(nc===null){$("importPreview").innerHTML="";toast("没找到姓名列，请在下方手动选择",false)}
+    pending={headers,rows,filename:f.name};
+    const colOpts=headers.map((h,i)=>`<option value="${i}" ${i===nc?"selected":""}>${esc(h)||("列"+(i+1))}</option>`).join("");
+    const clsOpts='<option value="">（不按班级）</option>'+headers.map((h,i)=>`<option value="${i}" ${i===cc?"selected":""}>${esc(h)||("列"+(i+1))}</option>`).join("");
+    $("importPreview").innerHTML=`
+      <div class="muted">文件：${esc(f.name)} · 有效数据行：${rows.length}</div>
+      <div style="display:flex;gap:12px;margin-top:10px;flex-wrap:wrap">
+        <label style="color:var(--sub);font-size:13px">姓名列：<select id="nc">${colOpts}</select></label>
+        <label style="color:var(--sub);font-size:13px">班级列：<select id="cc">${clsOpts}</select></label>
+      </div>`;
+    $("applyBtn").style.display="inline-block";
+  }catch(err){$("importPreview").innerHTML="";toast("解析失败："+err.message,false)}
+}
+$("applyBtn").onclick=()=>{
+  if(!pending)return;
+  const nc=parseInt($("nc").value), cc=$("cc").value===""?null:parseInt($("cc").value);
+  const students=[],seen=new Set();
+  pending.rows.forEach(r=>{
+    const name=(r[nc]||"").replace(/\s+/g,"");
+    if(!name||name==="姓名"||name==="学生姓名")return;
+    const key=r.map(c=>String(c).trim()).join("|");
+    if(seen.has(key))return;
+    seen.add(key);
+    students.push({id:students.length,name,cls:cc!==null?(r[cc]||"").trim():""});
+  });
+  if(!students.length){toast("该列没有解析出中文姓名，请换一列",false);return}
+  state={students,drawn:[],source:pending.filename};
+  save();pending=null;closeModal();
+  toast("导入成功："+students.length+" 名学生"+(classes().length?("，"+classes().length+" 个班"):""));
+  refresh();
+};
+function closeModal(){document.querySelectorAll(".modal").forEach(m=>m.style.display="none")}
+load();
+</script>
+</body>
+</html>

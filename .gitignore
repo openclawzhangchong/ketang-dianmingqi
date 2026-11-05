@@ -1,0 +1,7 @@
+__pycache__/
+*.pyc
+.DS_Store
+desktop.ini
+.herenow/
+desktop/server/data/
+desktop/server/点名记录/
