@@ -4,7 +4,7 @@
 
 | 形态 | 适合场景 | 入口 |
 |---|---|---|
-| **网页版** | 任何设备打开即用，零安装 | **[GitHub Pages 在线版](https://openclawzhangchong.github.io/ketang-dianmingqi/)**（[备用镜像](https://presto-cairn-ray7.here.now/)） |
+| **网页版** | 任何设备打开即用，零安装 | **[GitHub Pages 在线版](https://openclawzhangchong.github.io/ketang-dianmingqi/)**（[备用镜像](https://mineral-donkey-ggs3.here.now/)） |
 | **桌面版**（教师机） | 机房教师机常驻、大屏投影、不依赖浏览器缓存 | `desktop/启动课堂点名器.bat` 双击 |
 
 ## 功能
